@@ -1,13 +1,16 @@
-import java.sql.Connection;
+package project;
 
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+
 public class DbConnection {
 	static Connection conn = null;
+	
 	static Connection getConnection() {
 		try {
 			Class.forName("org.h2.Driver");
-			conn = DriverManager.getConnection("jdbc:h2:tcp://localhost/C:\\Users\\aneli\\Desktop\\Coding\\Repositories\\Java-OOP-and-DB/sampleDb", "sa", "1234");
+			conn = DriverManager.getConnection("jdbc:h2:tcp://localhost/C:\\Users\\aneli\\Desktop\\Coding\\Repositories\\Java-OOP-and-DB\\PianoHub/pianoHubDb");
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -15,7 +18,6 @@ public class DbConnection {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
 		return conn;
 	}
 }
