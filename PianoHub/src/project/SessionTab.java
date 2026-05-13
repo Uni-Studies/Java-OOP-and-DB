@@ -6,6 +6,8 @@ import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -51,8 +53,8 @@ public class SessionTab extends JPanel{
 	JButton sessionDeleteBtn = new JButton("Delete");
 	JButton sessionDetailsBtn = new JButton("Details");
 	
-	JTable sessions = new JTable();
-	JScrollPane sessionsScroll = new JScrollPane(sessions);
+	JTable sessionsTable = new JTable();
+	JScrollPane sessionsScroll = new JScrollPane(sessionsTable);
 	
 	public SessionTab() {
 		this.setLayout(new BorderLayout());
@@ -100,7 +102,7 @@ public class SessionTab extends JPanel{
 			state = conn.prepareStatement(
 					"SELECT * FROM SESSIONS");
 			result = state.executeQuery();
-			sessions.setModel(new MyModel(result));
+			sessionsTable.setModel(new MyModel(result));
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -161,6 +163,102 @@ public class SessionTab extends JPanel{
 				e1.printStackTrace();
 			}
 		}
+	}
+	
+	class DeleteAction implements ActionListener{
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			conn = DbConnection.getConnection();
+			
+			String sql = "DELETE FROM SESSIONS WHERE ID = ?";
+			
+			try {
+				state = conn.prepareStatement(sql);
+				state.setInt(1, id);
+				state.execute();
+				id = -1;
+				refreshTable();
+				refreshPlaysCombo();
+				clearForm();
+			} catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
 		
 	}
+	
+	class SearchSessionAction implements ActionListener {
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			conn = DbConnection.getConnection();
+			String sql = "SELECT * FROM SESSIONS WHERE DATE = ?";
+			
+			try {
+				state = conn.prepareStatement(sql);
+				state.setDate(1, java.sql.Date.valueOf(sessionDateTF.getText()));
+				result = state.executeQuery();
+				sessionsTable.setModel(new MyModel(result));
+				clearForm();
+			} catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			
+		}
+	}
+	
+	class RefreshSessionAction implements ActionListener {
+
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			refreshTable();
+		}
+		
+	}
+	
+	class MouseAction implements MouseListener{
+
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			int row = sessionsTable.getSelectedRow();
+			id = Integer.parseInt(sessionsTable.getValueAt(row, 0).toString());
+			sessionDescriptionTF.setText(sessionsTable.getValueAt(row,  1).toString());
+			sessionDurationTF.setText(sessionsTable.getValueAt(row,  1).toString());
+			sessionDateTF.setText(sessionsTable.getValueAt(row,  1).toString());
+			
+			
+		}
+
+		@Override
+		public void mousePressed(MouseEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void mouseReleased(MouseEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void mouseEntered(MouseEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void mouseExited(MouseEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+		
+	}
+	
 }
