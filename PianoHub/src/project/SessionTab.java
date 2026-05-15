@@ -12,15 +12,19 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 
 public class SessionTab extends JPanel{
@@ -34,6 +38,7 @@ public class SessionTab extends JPanel{
 	JPanel midSessionPanel = new JPanel();
 	JPanel downSessionPanel = new JPanel();
 	
+	//upPanel----------------------------------------------------------
 	JLabel sessionLabel = new JLabel("Session", SwingConstants.CENTER);
 	
 	JLabel sessionDescriptionLabel = new JLabel("Description: ");
@@ -44,15 +49,18 @@ public class SessionTab extends JPanel{
 	JTextField sessionDescriptionTF = new JTextField("Description");
 	JTextField sessionDurationTF = new JTextField("Duration");
 	JTextField sessionDateTF = new JTextField("Date");
+
+	DefaultListModel<String> listModel = new DefaultListModel<>();
+	JList<String> playsList = new JList<String>(listModel);
+	JScrollPane playsScroll = new JScrollPane(playsList);
 	
-	String[] item = {"Moonlight Sonata", "Symphony №9"};
-	JComboBox<String> playsCombo = new JComboBox<String>(item);
-	
+	//midPanel----------------------------------------------------------
 	JButton sessionAddBtn = new JButton("Add");
 	JButton sessionEditBtn = new JButton("Edit");
 	JButton sessionDeleteBtn = new JButton("Delete");
 	JButton sessionDetailsBtn = new JButton("Details");
 	
+	//downPanel----------------------------------------------------------
 	JTable sessionsTable = new JTable();
 	JScrollPane sessionsScroll = new JScrollPane(sessionsTable);
 	
@@ -76,7 +84,9 @@ public class SessionTab extends JPanel{
 		upSessionPanel.add(sessionDurationTF);
 				
 		upSessionPanel.add(selectPlayLabel);
-		upSessionPanel.add(playsCombo);
+		
+		playsList .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+		upSessionPanel.add(playsList);
 		this.add(upSessionPanel, BorderLayout.NORTH);
 		
 		midSessionPanel.setLayout(new GridLayout(5, 2, 10, 10));
@@ -87,13 +97,18 @@ public class SessionTab extends JPanel{
 		
 		this.add(midSessionPanel, BorderLayout.CENTER);
 		
+		sessionAddBtn.addActionListener(new AddAction());
+		//sessionEditBtn.addActionListener(new EditAction());
+		sessionDeleteBtn.addActionListener(new DeleteAction());
+		
+		
 		downSessionPanel.setLayout(new GridLayout(1, 1));
 		downSessionPanel.add(sessionsScroll);
 		
 		this.add(downSessionPanel, BorderLayout.SOUTH);
 		
 		refreshTable();
-		refreshPlaysCombo();
+		refreshPlaysList();
 	}
 	
 	public void refreshTable() {
@@ -119,8 +134,8 @@ public class SessionTab extends JPanel{
 		sessionDateTF.setText("");
 	}
 	
-	public void refreshPlaysCombo() {
-		playsCombo.removeAllItems();
+	public void refreshPlaysList() {
+		listModel.clear();
 		
 		conn = DbConnection.getConnection();
 		String sql = "SELECT NAME, AUTHOR, STATUS FROM TRACKS";
@@ -131,7 +146,7 @@ public class SessionTab extends JPanel{
 			while(result.next()) {
 				item = result.getObject(1).toString() + " by " + result.getObject(2) + " - " + result.getObject(3).toString();
 				
-				playsCombo.addItem(item);
+				listModel.addElement(item);
 			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
@@ -144,20 +159,55 @@ public class SessionTab extends JPanel{
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			conn = DbConnection.getConnection();
-			String sql = 
-					"INSERT INTO SESSION (DESCRIPTION, DURATION, DATE) VALUES (?, ?, ?)"; 
+			
+			String sql =
+				    "INSERT INTO SESSION (DESCRIPTION, DURATION, DATE) VALUES (?, ?, ?)";
+
 			try {
-				state = conn.prepareStatement(sql);
+				PreparedStatement state = conn.prepareStatement(
+				        sql,
+				        PreparedStatement.RETURN_GENERATED_KEYS
+				);
+				
 				state.setString(1,  sessionDescriptionTF.getText());
 				state.setString(2,  sessionDurationTF.getText());
 				
-				String dateString = sessionDateTF.getText();
-				java.sql.Date sqlDate = java.sql.Date.valueOf(dateString);
-				state.setString(3,  sessionDateTF.getText());
+				java.sql.Date sqlDate = java.sql.Date.valueOf(sessionDateTF.getText());
+				state.setDate(3, sqlDate);
 				
-				state.execute();
+				state.executeUpdate();
+				
+				ResultSet generatedKeys = state.getGeneratedKeys();
+				int sessionId = -1;
+				
+				if(generatedKeys.next()) {
+					sessionId = generatedKeys.getInt(1);
+				}
+				
+				List<String> selectedPlays = playsList.getSelectedValuesList();
+				for(String item : selectedPlays) {
+					String name = item.split(" by ")[0];
+					
+					String getTrack = "SELECT ID FROM TRACKS WHERE NAME = ?";
+				    PreparedStatement ps1 = conn.prepareStatement(getTrack);
+				    ps1.setString(1, name);
+				    
+				    ResultSet rs = ps1.executeQuery();
+				    
+				    if(rs.next()) {
+				    	int trackId = result.getInt("ID");
+				    	String insert = "INSERT INTO SESSION_TRACK (SESSION_ID, TRACK_ID) VALUES (?, ?)";
+				    	
+				    	PreparedStatement ps2 = conn.prepareStatement(insert);
+				    	ps2.setInt(1, sessionId);
+				    	ps2.setInt(2, trackId);
+				    	
+				    	ps2.executeUpdate();
+				    }
+				}
+				
 				refreshTable();
-				refreshPlaysCombo();
+				refreshPlaysList();
 				clearForm();
 			} catch (SQLException e1) {
 				e1.printStackTrace();
@@ -179,7 +229,7 @@ public class SessionTab extends JPanel{
 				state.execute();
 				id = -1;
 				refreshTable();
-				refreshPlaysCombo();
+				refreshPlaysList();
 				clearForm();
 			} catch (SQLException e1) {
 				// TODO Auto-generated catch block
@@ -231,8 +281,6 @@ public class SessionTab extends JPanel{
 			sessionDescriptionTF.setText(sessionsTable.getValueAt(row,  1).toString());
 			sessionDurationTF.setText(sessionsTable.getValueAt(row,  1).toString());
 			sessionDateTF.setText(sessionsTable.getValueAt(row,  1).toString());
-			
-			
 		}
 
 		@Override
